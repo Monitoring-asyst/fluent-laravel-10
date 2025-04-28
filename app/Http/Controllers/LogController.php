@@ -10,24 +10,17 @@ class LogController extends Controller
     public function receive(Request $request)
     {
         $rawText = $request->getContent();
-
-        // Coba decode sebagai JSON array
         $jsonData = json_decode($rawText, true);
-
         if (is_array($jsonData)) {
-            // Jika array, loop per item
             foreach ($jsonData as $item) {
-                // Ambil field log (atau sesuaikan dengan struktur data kamu)
                 $logLine = $item['log'] ?? json_encode($item);
-
                 if (preg_match('/^(INFO|ERROR|WARN|DEBUG):\s+(.*)$/', $logLine, $matches)) {
                     $level = $matches[1];
                     $message = $matches[2];
                 } else {
-                    $level = 'INFO';
-                    $message = $logLine;
+                    $level = $item['level'] ?? 'INFO';
+                    $message = $item['message'] ?? $logLine;
                 }
-
                 Log::create([
                     'level' => $level,
                     'message' => $message,
@@ -35,11 +28,9 @@ class LogController extends Controller
                 ]);
             }
         } else {
-            // Jika bukan array, fallback ke mode per baris (misal: text biasa)
             $lines = explode("\n", trim($rawText));
             foreach ($lines as $line) {
                 if (empty(trim($line))) continue;
-
                 if (preg_match('/^(INFO|ERROR|WARN|DEBUG):\s+(.*)$/', $line, $matches)) {
                     $level = $matches[1];
                     $message = $matches[2];
@@ -47,7 +38,6 @@ class LogController extends Controller
                     $level = 'INFO';
                     $message = $line;
                 }
-
                 Log::create([
                     'level' => $level,
                     'message' => $message,
@@ -55,7 +45,6 @@ class LogController extends Controller
                 ]);
             }
         }
-
         return response()->json(['status' => 'success']);
     }
 

@@ -3,6 +3,9 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\LogController;
+use App\Http\Controllers\MetricController;
+use App\Models\Metric;
+use Illuminate\Support\Facades\Log;
 
 /*
 |--------------------------------------------------------------------------
@@ -21,3 +24,9 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 
 Route::post('/logs/receive', [LogController::class, 'receive']);
 Route::get('/logs/{id}', [LogController::class, 'show']);
+
+Route::post('/metrics/receive', [MetricController::class, 'receive']);
+Route::get('/metrics/{id}', [MetricController::class, 'show']);
+
+Route::post('/metrics/cpu', [MetricController::class, 'cpu']);
+Route::post('/metrics/mem', [MetricController::class, 'mem']);

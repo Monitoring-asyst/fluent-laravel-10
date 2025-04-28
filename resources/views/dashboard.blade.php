@@ -34,28 +34,14 @@
 
         <div class="page-wrapper">
             <div class="container-xl">
-                <div class="card">
-                    <div class="card-header">
-                        <ul class="nav nav-tabs card-header-tabs" data-bs-toggle="tabs">
-                            <li class="nav-item">
-                                <a href="#dashboard" class="nav-link active" data-bs-toggle="tab">
-                                    <i class="bx bx-home"></i> Dashboard
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="#logs" class="nav-link" data-bs-toggle="tab">
-                                    <i class="bx bx-list-ul"></i> Logs
-                                </a>
-                            </li>
-                        </ul>
-                    </div>
-                    <div class="card-body">
-                        <div class="tab-content">
-                            <div class="tab-pane active" id="dashboard">
-                                <!-- Konten dashboard yang sudah ada -->
-                                <h2>Welcome to Dashboard</h2>
+                <div class="row">
+                    <!-- Logs Section -->
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Logs</h3>
                             </div>
-                            <div class="tab-pane" id="logs">
+                            <div class="card-body">
                                 <div class="table-responsive">
                                     <table class="table table-vcenter card-table">
                                         <thead>
@@ -77,7 +63,7 @@
                                                     </td>
                                                     <td>{{ $log->message }}</td>
                                                     <td>
-                                                        <button class="btn btn-sm btn-info" onclick="showDetails({{ $log->id }})">
+                                                        <button class="btn btn-sm btn-info" onclick="showLogDetails({{ $log->id }})">
                                                             <i class="bx bx-show"></i> View Details
                                                         </button>
                                                     </td>
@@ -89,6 +75,71 @@
 
                                 <div class="d-flex justify-content-center mt-4">
                                     {{ $logs->links() }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Metrics Section -->
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">System Metrics</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-vcenter card-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Type</th>
+                                                <th>Usage (%)</th>
+                                                <th>Used (MB)</th>
+                                                <th>Total (MB)</th>
+                                                <th>Timestamp</th>
+                                                <th>Details</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach($metrics as $metric)
+                                                <tr>
+                                                    <td>
+                                                        <span class="badge bg-{{ $metric->type === 'cpu' ? 'primary' : 'success' }}">
+                                                            {{ strtoupper($metric->type) }}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        @if($metric->type === 'cpu')
+                                                            <span class="text-primary fw-bold">{{ number_format($metric->cpu_usage, 2) }}%</span>
+                                                        @else
+                                                            <span class="text-success fw-bold">{{ number_format($metric->memory_usage, 2) }}%</span>
+                                                        @endif
+                                                    </td>
+                                                    <td>
+                                                        @if($metric->type === 'memory' && isset($metric->raw_data['Mem.used']))
+                                                            {{ number_format($metric->raw_data['Mem.used'] / 1024, 2) }} MB
+                                                        @else
+                                                            -
+                                                        @endif
+                                                    </td>
+                                                    <td>
+                                                        @if($metric->type === 'memory' && isset($metric->raw_data['Mem.total']))
+                                                            {{ number_format($metric->raw_data['Mem.total'] / 1024, 2) }} MB
+                                                        @else
+                                                            -
+                                                        @endif
+                                                    </td>
+                                                    <td>
+                                                        {{ $metric->timestamp ? \Carbon\Carbon::parse($metric->timestamp)->format('Y-m-d H:i:s') : '-' }}
+                                                    </td>
+                                                    <td>
+                                                        <button class="btn btn-sm btn-info" onclick="showMetricDetails({{ $metric->id }})">
+                                                            <i class="bx bx-show"></i> View Details
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>
@@ -112,17 +163,42 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal for showing metric details -->
+    <div class="modal modal-blur fade" id="metricDetailsModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Metric Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <pre id="metricDetailsContent" class="p-3 bg-light rounded"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
 @endsection
 
 @push('scripts')
 <script>
-    function showDetails(logId) {
+    function showLogDetails(logId) {
         fetch(`/api/logs/${logId}`)
             .then(response => response.json())
             .then(data => {
                 document.getElementById('logDetailsContent').textContent = 
                     JSON.stringify(data, null, 2);
                 new bootstrap.Modal(document.getElementById('logDetailsModal')).show();
+            });
+    }
+
+    function showMetricDetails(metricId) {
+        fetch(`/api/metrics/${metricId}`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('metricDetailsContent').textContent = 
+                    JSON.stringify(data, null, 2);
+                new bootstrap.Modal(document.getElementById('metricDetailsModal')).show();
             });
     }
 </script>
