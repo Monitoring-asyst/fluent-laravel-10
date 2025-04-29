@@ -13,6 +13,9 @@ class LogController extends Controller
         $jsonData = json_decode($rawText, true);
         if (is_array($jsonData)) {
             foreach ($jsonData as $item) {
+                if (isset($item['cpu_p']) || isset($item['Mem.total'])) {
+                    continue;
+                }
                 $logLine = $item['log'] ?? json_encode($item);
                 if (preg_match('/^(INFO|ERROR|WARN|DEBUG):\s+(.*)$/', $logLine, $matches)) {
                     $level = $matches[1];

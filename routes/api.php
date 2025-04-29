@@ -26,6 +26,7 @@ Route::post('/logs/receive', [LogController::class, 'receive']);
 Route::get('/logs/{id}', [LogController::class, 'show']);
 
 Route::post('/metrics/receive', [MetricController::class, 'receive']);
+Route::get('/metrics/latest', [MetricController::class, 'latest']);
 Route::get('/metrics/{id}', [MetricController::class, 'show']);
 
 Route::post('/metrics/cpu', [MetricController::class, 'cpu']);

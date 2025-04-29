@@ -100,44 +100,38 @@
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            @foreach($metrics as $metric)
-                                                <tr>
-                                                    <td>
-                                                        <span class="badge bg-{{ $metric->type === 'cpu' ? 'primary' : 'success' }}">
-                                                            {{ strtoupper($metric->type) }}
-                                                        </span>
-                                                    </td>
-                                                    <td>
-                                                        @if($metric->type === 'cpu')
-                                                            <span class="text-primary fw-bold">{{ number_format($metric->cpu_usage, 2) }}%</span>
-                                                        @else
-                                                            <span class="text-success fw-bold">{{ number_format($metric->memory_usage, 2) }}%</span>
-                                                        @endif
-                                                    </td>
-                                                    <td>
-                                                        @if($metric->type === 'memory' && isset($metric->raw_data['Mem.used']))
-                                                            {{ number_format($metric->raw_data['Mem.used'] / 1024, 2) }} MB
-                                                        @else
-                                                            -
-                                                        @endif
-                                                    </td>
-                                                    <td>
-                                                        @if($metric->type === 'memory' && isset($metric->raw_data['Mem.total']))
-                                                            {{ number_format($metric->raw_data['Mem.total'] / 1024, 2) }} MB
-                                                        @else
-                                                            -
-                                                        @endif
-                                                    </td>
-                                                    <td>
-                                                        {{ $metric->timestamp ? \Carbon\Carbon::parse($metric->timestamp)->format('Y-m-d H:i:s') : '-' }}
-                                                    </td>
-                                                    <td>
-                                                        <button class="btn btn-sm btn-info" onclick="showMetricDetails({{ $metric->id }})">
-                                                            <i class="bx bx-show"></i> View Details
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            @endforeach
+                                            <tr data-type="cpu">
+                                                <td>
+                                                    <span class="badge bg-primary">CPU</span>
+                                                </td>
+                                                <td data-usage>
+                                                    <span class="text-primary fw-bold">-</span>
+                                                </td>
+                                                <td>-</td>
+                                                <td>-</td>
+                                                <td data-timestamp>-</td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-info" onclick="showMetricDetails(0)">
+                                                        <i class="bx bx-show"></i> View Details
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            <tr data-type="memory">
+                                                <td>
+                                                    <span class="badge bg-success">MEMORY</span>
+                                                </td>
+                                                <td data-usage>
+                                                    <span class="text-success fw-bold">-</span>
+                                                </td>
+                                                <td data-used>-</td>
+                                                <td data-total>-</td>
+                                                <td data-timestamp>-</td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-info" onclick="showMetricDetails(0)">
+                                                        <i class="bx bx-show"></i> View Details
+                                                    </button>
+                                                </td>
+                                            </tr>
                                         </tbody>
                                     </table>
                                 </div>
@@ -201,5 +195,73 @@
                 new bootstrap.Modal(document.getElementById('metricDetailsModal')).show();
             });
     }
+
+    function updateMetrics() {
+        fetch('/api/metrics/latest')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Update CPU metrics
+                const cpuRow = document.querySelector('tr[data-type="cpu"]');
+                if (cpuRow && data.cpu) {
+                    const cpuUsage = parseFloat(data.cpu.cpu_usage);
+                    if (!isNaN(cpuUsage)) {
+                        cpuRow.querySelector('td[data-usage] span').textContent = `${cpuUsage.toFixed(2)}%`;
+                        cpuRow.querySelector('td[data-timestamp]').textContent = new Date(data.cpu.timestamp).toLocaleString();
+                    } else {
+                        cpuRow.querySelector('td[data-usage] span').textContent = '-';
+                        cpuRow.querySelector('td[data-timestamp]').textContent = '-';
+                    }
+                }
+
+                // Update Memory metrics
+                const memRow = document.querySelector('tr[data-type="memory"]');
+                if (memRow && data.memory) {
+                    const memUsage = parseFloat(data.memory.memory_usage);
+                    if (!isNaN(memUsage)) {
+                        memRow.querySelector('td[data-usage] span').textContent = `${memUsage.toFixed(2)}%`;
+                        const memUsed = parseFloat(data.memory.raw_data['Mem.used']);
+                        const memTotal = parseFloat(data.memory.raw_data['Mem.total']);
+                        if (!isNaN(memUsed) && !isNaN(memTotal)) {
+                            memRow.querySelector('td[data-used]').textContent = `${(memUsed / 1024).toFixed(2)} MB`;
+                            memRow.querySelector('td[data-total]').textContent = `${(memTotal / 1024).toFixed(2)} MB`;
+                        } else {
+                            memRow.querySelector('td[data-used]').textContent = '-';
+                            memRow.querySelector('td[data-total]').textContent = '-';
+                        }
+                        memRow.querySelector('td[data-timestamp]').textContent = new Date(data.memory.timestamp).toLocaleString();
+                    } else {
+                        memRow.querySelector('td[data-usage] span').textContent = '-';
+                        memRow.querySelector('td[data-used]').textContent = '-';
+                        memRow.querySelector('td[data-total]').textContent = '-';
+                        memRow.querySelector('td[data-timestamp]').textContent = '-';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching metrics:', error);
+                // Set all values to '-' if there's an error
+                const rows = document.querySelectorAll('tr[data-type]');
+                rows.forEach(row => {
+                    row.querySelectorAll('td[data-usage], td[data-used], td[data-total], td[data-timestamp]').forEach(td => {
+                        if (td.querySelector('span')) {
+                            td.querySelector('span').textContent = '-';
+                        } else {
+                            td.textContent = '-';
+                        }
+                    });
+                });
+            });
+    }
+
+    // Update metrics every 5 seconds
+    setInterval(updateMetrics, 5000);
+
+    // Initial update
+    updateMetrics();
 </script>
 @endpush

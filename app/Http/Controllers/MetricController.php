@@ -93,4 +93,46 @@ class MetricController extends Controller
         }
         return response()->json(['status' => 'success'], 201);
     }
+
+    public function latest()
+    {
+        try {
+            $cpu = Metric::where('type', 'cpu')
+                ->orderBy('timestamp', 'desc')
+                ->first();
+
+            $memory = Metric::where('type', 'memory')
+                ->orderBy('timestamp', 'desc')
+                ->first();
+
+            $response = [
+                'cpu' => null,
+                'memory' => null
+            ];
+
+            if ($cpu) {
+                $response['cpu'] = [
+                    'cpu_usage' => (float) $cpu->cpu_usage,
+                    'timestamp' => $cpu->timestamp,
+                    'raw_data' => $cpu->raw_data
+                ];
+            }
+
+            if ($memory) {
+                $response['memory'] = [
+                    'memory_usage' => (float) $memory->memory_usage,
+                    'timestamp' => $memory->timestamp,
+                    'raw_data' => $memory->raw_data
+                ];
+            }
+
+            return response()->json($response);
+        } catch (\Exception $e) {
+            Log::error('Error fetching latest metrics: ' . $e->getMessage());
+            return response()->json([
+                'cpu' => null,
+                'memory' => null
+            ], 500);
+        }
+    }
 }
