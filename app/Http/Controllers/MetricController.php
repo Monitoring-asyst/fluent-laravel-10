@@ -10,25 +10,52 @@ class MetricController extends Controller
 {
     public function receive(Request $request)
     {
-        $data = $request->all();
+        \Log::info('MetricController@receive called', ['payload' => $request->all()]);
+        $payloads = $request->all();
 
-        // Extract metrics data
-        $pid = $data['pid'] ?? null;
-        $name = $data['name'] ?? 'Unknown';
-        $cpuUsage = $data['cpu_usage'] ?? 0;
-        $memoryUsage = $data['memory_usage'] ?? 0;
+        // Normalize: jadikan array kalau objek tunggal
+        if (!is_array($payloads) || isset($payloads['cpu_p']) || isset($payloads['Mem.used'])) {
+            $payloads = [$payloads];
+        }
 
-        // Store the metric
-        Metric::create([
-            'pid' => $pid,
-            'name' => $name,
-            'cpu_usage' => $cpuUsage,
-            'memory_usage' => $memoryUsage,
-            'raw_data' => $data
-        ]);
+        foreach ($request->all() as $fields) {
+            $timestamp = isset($fields['date']) ? date('Y-m-d H:i:s', (float)$fields['date']) : now();
+            $hostname = $fields['hostname'] ?? 'unknown';
+
+            if (isset($fields['cpu_p'])) {
+                Metric::create([
+                    'pid' => null,
+                    'name' => 'CPU',
+                    'cpu_usage' => $fields['cpu_p'],
+                    'memory_usage' => null,
+                    'host' => $hostname,
+                    'type' => 'cpu',
+                    'value' => $fields['cpu_p'],
+                    'timestamp' => $timestamp,
+                    'raw_data' => $fields
+                ]);
+            } elseif (isset($fields['Mem.used'], $fields['Mem.total'])) {
+                $memUsed = $fields['Mem.used'];
+                $memTotal = $fields['Mem.total'];
+                $memPercent = ($memTotal > 0) ? ($memUsed / $memTotal) * 100 : 0;
+
+                Metric::create([
+                    'pid' => null,
+                    'name' => 'Memory',
+                    'cpu_usage' => null,
+                    'memory_usage' => $memPercent,
+                    'host' => $hostname,
+                    'type' => 'memory',
+                    'value' => $memPercent,
+                    'timestamp' => $timestamp,
+                    'raw_data' => $fields
+                ]);
+            }
+        }
 
         return response()->json(['status' => 'success']);
     }
+
 
     public function show($id)
     {
